@@ -25,22 +25,27 @@ type ProcessedFile = {
 }
 
 async function extractPdfText(file: File): Promise<string> {
-  const pdfjsLib = await import('pdfjs-dist')
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
-
-  const arrayBuffer = await file.arrayBuffer()
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
-  const pageTexts: string[] = []
-
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i)
-    const content = await page.getTextContent()
+  try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    pageTexts.push(content.items.map((item: any) => item.str).join(' '))
-  }
+    const pdfjsLib = (window as any).pdfjsLib
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
 
-  return pageTexts.join('\n\n').trim()
+    const arrayBuffer = await file.arrayBuffer()
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+    const pageTexts: string[] = []
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i)
+      const content = await page.getTextContent()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      pageTexts.push(content.items.map((item: any) => item.str).join(' '))
+    }
+
+    return pageTexts.join('\n\n').trim()
+  } catch (err) {
+    return `PDF extraction error: ${err instanceof Error ? err.message : String(err)}`
+  }
 }
 
 function fileToBase64(file: File): Promise<string> {
